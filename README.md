@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ♻️ Recio — Bank Sampah Eco-System
 
-## Getting Started
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?style=for-the-badge&logo=tailwind-css)
 
-First, run the development server:
+**Recio** adalah platform pengelolaan dan penyetoran sampah terpadu yang dirancang untuk memudahkan nasabah dalam menukarkan sampah menjadi poin/hadiah, serta membantu pengurus bank sampah dalam memverifikasi dan merakap data penyetoran secara efisien.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Fitur Utama
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 👤 Role Nasabah
+* **Dashboard Informatif**: Menampilkan statistik poin, riwayat penyetoran, dan status akun.
+* **Setor Sampah**: Formulir penyetoran sampah online dengan sistem kategori.
+* **Tukar Hadiah**: Penukaran poin yang terkumpul dengan berbagai pilihan hadiah.
+* **Riwayat & Detail**: Pemantauan status verifikasi transaksi secara real-time.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 🛡️ Role Admin / Pengurus
+* **Verifikasi Penyetoran**: Validasi dan persetujuan data sampah yang disetor oleh nasabah.
+* **Manajemen Kategori & Hadiah**: Pengelolaan data jenis sampah dan katalog hadiah.
+* **Manajemen Nasabah**: Pengelolaan basis data pengguna terdaftar.
+* **Rekapitulasi Data**: Laporan transaksi dan rekapitulasi penyetoran secara menyeluruh.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🛠️ Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+* **Framework**: Next.js (App Router)
+* **Language**: TypeScript
+* **Styling**: Tailwind CSS, Lucide React (Icons)
+* **Authentication & API**: Custom Rest API Integration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🚀 Cara Menjalankan Proyek Secara Lokal
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Clone Repositori**
+   ```bash
+   git clone [https://github.com/Maratussyifa/recio-bank-sampah.git](https://github.com/Maratussyifa/recio-bank-sampah.git)
+   cd recio-bank-sampah
