@@ -14,13 +14,11 @@ import {
   Loader2,
   PackageCheck,
   PackageX,
-  Coins,
   ChevronRight,
   X,
   Boxes,
   Image as ImageIcon,
   Upload,
-  Link as LinkIcon,
   Eye,
 } from "lucide-react";
 
@@ -34,6 +32,29 @@ interface HadiahItem {
   foto?: string;
   gambar?: string;
 }
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "https://learn.smktelkom-mlg.sch.id/bank_sampah/api/v1";
+const FILE_BASE_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
+
+const getImageUrl = (path?: string) => {
+  if (!path) return "";
+
+  if (
+    path.startsWith("http://") ||
+    path.startsWith("https://") ||
+    path.startsWith("blob:") ||
+    path.startsWith("data:")
+  ) {
+    return path;
+  }
+
+  const cleanPath = path.replace(/\\/g, "/");
+  const formattedPath = cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
+
+  return `${FILE_BASE_URL}${formattedPath}`;
+};
 
 function Reveal({
   children,
@@ -96,10 +117,12 @@ export default function AdminHadiahPage() {
   const [namaHadiah, setNamaHadiah] = useState("");
   const [poinDibutuhkan, setPoinDibutuhkan] = useState<string>("");
   const [stok, setStok] = useState<string>("");
-  
-  const [uploadMode, setUploadMode] = useState<"file" | "url">("file");
-  const [foto, setFoto] = useState<string>("");
+
+  const [fotoPreview, setFotoPreview] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
+
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const extractArray = <T,>(res: unknown): T[] => {
     if (!res || typeof res !== "object") return [];
@@ -164,7 +187,8 @@ export default function AdminHadiahPage() {
     setNamaHadiah("");
     setPoinDibutuhkan("");
     setStok("");
-    setFoto("");
+    setFotoPreview("");
+    setSelectedFile(null);
     setErrorMsg("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -175,17 +199,22 @@ export default function AdminHadiahPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setErrorMsg("Ukuran file gambar terlalu besar (Maksimal 2MB).");
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("Ukuran file gambar terlalu besar (Maksimal 5MB).");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFoto(reader.result as string);
-      setErrorMsg("");
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    setFotoPreview(URL.createObjectURL(file));
+    setErrorMsg("");
+  };
+
+  const handleRemovePhoto = () => {
+    setFotoPreview("");
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleEditInit = (item: HadiahItem) => {
@@ -193,7 +222,8 @@ export default function AdminHadiahPage() {
     setNamaHadiah(item.namaHadiah || "");
     setPoinDibutuhkan(String(item.poinDibutuhkan ?? item.poin ?? ""));
     setStok(String(item.stok ?? item.stokHadiah ?? ""));
-    setFoto(item.foto || item.gambar || "");
+    setFotoPreview(getImageUrl(item.foto || item.gambar));
+    setSelectedFile(null);
     setErrorMsg("");
     setSuccessMsg("");
     window.scrollTo({ top: 300, behavior: "smooth" });
@@ -236,12 +266,14 @@ export default function AdminHadiahPage() {
       return;
     }
 
-    const payload = {
-      namaHadiah: namaHadiah.trim(),
-      poinDibutuhkan: nilaiPoin,
-      stok: nilaiStok,
-      foto: foto.trim() || undefined,
-    };
+    const formData = new FormData();
+    formData.append("namaHadiah", namaHadiah.trim());
+    formData.append("poinDibutuhkan", String(nilaiPoin));
+    formData.append("stok", String(nilaiStok));
+
+    if (selectedFile) {
+      formData.append("foto", selectedFile);
+    }
 
     try {
       setSubmitting(true);
@@ -249,10 +281,10 @@ export default function AdminHadiahPage() {
       setSuccessMsg("");
 
       if (editingId) {
-        await hadiahApi.update(editingId, payload);
+        await hadiahApi.update(editingId, formData);
         setSuccessMsg(`Hadiah "${namaHadiah}" berhasil diperbarui.`);
       } else {
-        await hadiahApi.create(payload);
+        await hadiahApi.create(formData);
         setSuccessMsg(`Hadiah "${namaHadiah}" berhasil ditambahkan.`);
       }
 
@@ -360,7 +392,7 @@ export default function AdminHadiahPage() {
               <AlertCircle size={16} />
               <span>{errorMsg}</span>
             </div>
-            <button onClick={() => setErrorMsg("")} className="text-[#B3522F] hover:opacity-75">
+            <button onClick={() => setErrorMsg("")} className="text-[#B3522F] hover:opacity-75 cursor-pointer">
               <X size={16} />
             </button>
           </div>
@@ -372,7 +404,7 @@ export default function AdminHadiahPage() {
               <CheckCircle2 size={16} />
               <span>{successMsg}</span>
             </div>
-            <button onClick={() => setSuccessMsg("")} className="text-[#0B4F45] hover:opacity-75">
+            <button onClick={() => setSuccessMsg("")} className="text-[#0B4F45] hover:opacity-75 cursor-pointer">
               <X size={16} />
             </button>
           </div>
@@ -450,35 +482,25 @@ export default function AdminHadiahPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-[#0B4F45]">Foto Hadiah</label>
-                    <div className="flex items-center gap-1 bg-[#F4F8F7] p-0.5 rounded-lg border border-[#EAF0EE]">
+                  <label className="text-xs font-bold text-[#0B4F45]">Foto Hadiah</label>
+
+                  {fotoPreview ? (
+                    <div className="relative mt-2 rounded-xl overflow-hidden border border-[#EAF0EE] bg-[#F4F8F7] group h-36 flex items-center justify-center">
+                      <img
+                        src={fotoPreview}
+                        alt="Preview Hadiah"
+                        className="w-full h-full object-cover"
+                      />
                       <button
                         type="button"
-                        onClick={() => setUploadMode("file")}
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors ${
-                          uploadMode === "file"
-                            ? "bg-[#00B8A9] text-white shadow-xs"
-                            : "text-[#6B7C7A] hover:text-[#0B4F45]"
-                        }`}
+                        onClick={handleRemovePhoto}
+                        className="absolute top-2 right-2 p-1.5 bg-[#B3522F] text-white rounded-lg opacity-90 hover:opacity-100 transition-opacity shadow-sm cursor-pointer"
+                        title="Hapus Gambar"
                       >
-                        Upload
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setUploadMode("url")}
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors ${
-                          uploadMode === "url"
-                            ? "bg-[#00B8A9] text-white shadow-xs"
-                            : "text-[#6B7C7A] hover:text-[#0B4F45]"
-                        }`}
-                      >
-                        URL Link
+                        <X size={14} />
                       </button>
                     </div>
-                  </div>
-
-                  {uploadMode === "file" ? (
+                  ) : (
                     <div>
                       <input
                         ref={fileInputRef}
@@ -494,43 +516,8 @@ export default function AdminHadiahPage() {
                       >
                         <Upload size={20} className="text-[#00B8A9] mb-1 group-hover:scale-110 transition-transform" />
                         <span className="text-xs font-bold text-[#0B4F45]">Klik untuk Unggah Gambar</span>
-                        <span className="text-[10px] text-[#6B7C7A] mt-0.5">PNG, JPG, JPEG (Maks. 2MB)</span>
+                        <span className="text-[10px] text-[#6B7C7A] mt-0.5">PNG, JPG, JPEG (Maks. 5MB)</span>
                       </label>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="https://domain.com/gambar.jpg"
-                        value={foto}
-                        onChange={(e) => setFoto(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2.5 bg-[#F4F8F7] border border-[#EAF0EE] rounded-xl text-xs font-medium text-[#1F2D2B] focus:outline-none focus:border-[#00B8A9] focus:bg-white transition-all placeholder:text-[#91A19F]"
-                      />
-                      <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7C7A]" />
-                    </div>
-                  )}
-
-                  {foto && (
-                    <div className="relative mt-2 rounded-xl overflow-hidden border border-[#EAF0EE] bg-[#F4F8F7] group h-36 flex items-center justify-center">
-                      <img
-                        src={foto}
-                        alt="Preview Hadiah"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFoto("");
-                          if (fileInputRef.current) fileInputRef.current.value = "";
-                        }}
-                        className="absolute top-2 right-2 p-1.5 bg-[#B3522F] text-white rounded-lg opacity-90 hover:opacity-100 transition-opacity shadow-sm"
-                        title="Hapus Gambar"
-                      >
-                        <X size={14} />
-                      </button>
                     </div>
                   )}
                 </div>
@@ -608,12 +595,14 @@ export default function AdminHadiahPage() {
                       {filteredHadiah.map((item) => {
                         const jumlahStok = item.stok ?? item.stokHadiah ?? 0;
                         const poinVal = item.poinDibutuhkan ?? item.poin ?? 0;
-                        const imgUrl = item.foto || item.gambar;
+                        const rawImg = item.foto || item.gambar;
+                        const imgUrl = getImageUrl(rawImg);
+                        const isFailed = failedImages[item.id];
 
                         return (
                           <tr key={item.id} className="hover:bg-[#F9FBFB] transition-colors group">
                             <td className="py-3.5 px-3">
-                              {imgUrl ? (
+                              {imgUrl && !isFailed ? (
                                 <div
                                   onClick={() => setSelectedImageModal(imgUrl)}
                                   className="w-10 h-10 rounded-lg overflow-hidden border border-[#EAF0EE] bg-[#F4F8F7] relative cursor-pointer group/img flex items-center justify-center shrink-0"
@@ -622,13 +611,19 @@ export default function AdminHadiahPage() {
                                     src={imgUrl}
                                     alt={item.namaHadiah}
                                     className="w-full h-full object-cover group-hover/img:scale-110 transition-transform"
+                                    onError={() => {
+                                      setFailedImages((prev) => ({ ...prev, [item.id]: true }));
+                                    }}
                                   />
                                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
                                     <Eye size={12} className="text-white" />
                                   </div>
                                 </div>
                               ) : (
-                                <div className="w-10 h-10 rounded-lg bg-[#F4F8F7] border border-[#EAF0EE] text-[#91A19F] flex items-center justify-center shrink-0">
+                                <div
+                                  className="w-10 h-10 rounded-lg bg-[#EAF0EE] border border-[#D0DFDC] text-[#6B7C7A] flex items-center justify-center shrink-0"
+                                  title="Gambar tidak tersedia / gagal dimuat"
+                                >
                                   <ImageIcon size={18} />
                                 </div>
                               )}
@@ -638,7 +633,6 @@ export default function AdminHadiahPage() {
                             </td>
                             <td className="py-3.5 px-3 font-semibold text-[#1F2D2B]">
                               <span className="inline-flex items-center gap-1 text-[#00B8A9] font-extrabold">
-                                <Coins size={12} />
                                 {poinVal.toLocaleString("id-ID")}
                               </span> Poin
                             </td>
@@ -704,7 +698,7 @@ export default function AdminHadiahPage() {
           >
             <button
               onClick={() => setSelectedImageModal(null)}
-              className="absolute top-5 right-5 p-2 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors z-10"
+              className="absolute top-5 right-5 p-2 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors z-10 cursor-pointer"
             >
               <X size={16} />
             </button>

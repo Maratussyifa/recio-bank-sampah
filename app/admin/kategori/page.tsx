@@ -45,6 +45,17 @@ const JENIS_OPTIONS = [
   { label: "Lainnya", value: "lainnya" },
 ];
 
+const getImageUrl = (path?: string) => {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("blob:")) {
+    return path;
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://learn.smktelkom-mlg.sch.id/bank_sampah";
+  const cleanBase = baseUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+};
+
 function Reveal({
   children,
   delay = 0,
@@ -106,7 +117,6 @@ export default function AdminKategoriPage() {
   const [jenisSampah, setJenisSampah] = useState("plastik");
   const [poinPerKg, setPoinPerKg] = useState<string>("");
   
-  // State untuk unggah foto
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
 
@@ -187,12 +197,13 @@ export default function AdminKategoriPage() {
   };
 
   const handleEditInit = (item: KategoriItem) => {
+    const rawFoto = item.foto || item.gambarUrl || item.imageUrl;
     setEditingId(item.id);
     setNamaKategori(item.namaKategori || "");
     setJenisSampah((item.jenis || item.jenisSampah || "plastik").toLowerCase());
     setPoinPerKg(String(item.poinPerKg ?? item.harga ?? item.hargaPerKg ?? ""));
     setFotoFile(null);
-    setFotoPreview(item.foto || item.gambarUrl || item.imageUrl || null);
+    setFotoPreview(getImageUrl(rawFoto));
     setErrorMsg("");
     setSuccessMsg("");
     window.scrollTo({ top: 300, behavior: "smooth" });
@@ -233,7 +244,6 @@ export default function AdminKategoriPage() {
       return;
     }
 
-    // Gunakan FormData untuk pengiriman payload beserta file foto
     const formData = new FormData();
     formData.append("namaKategori", namaKategori.trim());
     formData.append("hargaPerKg", String(nilaiAngka));
@@ -241,7 +251,7 @@ export default function AdminKategoriPage() {
     formData.append("jenis", jenisSampah);
     
     if (fotoFile) {
-      formData.append("foto", fotoFile); // Sesuaikan key 'foto' sesuai kontrak backend API
+      formData.append("foto", fotoFile);
     }
 
     try {
@@ -402,13 +412,19 @@ export default function AdminKategoriPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Field Foto Kategori */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#0B4F45]">Foto Kategori</label>
                   <div className="flex items-center gap-3">
                     <div className="w-16 h-16 rounded-xl border border-[#EAF0EE] bg-[#F4F8F7] flex items-center justify-center overflow-hidden shrink-0">
                       {fotoPreview ? (
-                        <img src={fotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                        <img
+                          src={fotoPreview}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
                       ) : (
                         <ImageIcon size={20} className="text-[#6B7C7A]" />
                       )}
@@ -548,14 +564,22 @@ export default function AdminKategoriPage() {
                       {filteredKategori.map((item) => {
                         const jenisStr = item.jenis || item.jenisSampah || "Lainnya";
                         const poinVal = item.poinPerKg ?? item.harga ?? item.hargaPerKg ?? 0;
-                        const itemFoto = item.foto || item.gambarUrl || item.imageUrl;
+                        const rawFoto = item.foto || item.gambarUrl || item.imageUrl;
+                        const itemFoto = getImageUrl(rawFoto);
 
                         return (
                           <tr key={item.id} className="hover:bg-[#F9FBFB] transition-colors group">
                             <td className="py-3.5 px-3">
                               <div className="w-10 h-10 rounded-lg bg-[#F4F8F7] border border-[#EAF0EE] overflow-hidden flex items-center justify-center">
                                 {itemFoto ? (
-                                  <img src={itemFoto} alt={item.namaKategori} className="w-full h-full object-cover" />
+                                  <img
+                                    src={itemFoto}
+                                    alt={item.namaKategori}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = "none";
+                                    }}
+                                  />
                                 ) : (
                                   <ImageIcon size={16} className="text-[#6B7C7A]" />
                                 )}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Leaf, LogOut, User, Menu, X, Home, PlusCircle, Gift, History } from "lucide-react";
+import { Leaf, LogOut, User, Menu, X, Home, BookOpen, PlusCircle, Gift, History } from "lucide-react";
 import { authApi } from "@/lib/apiClient";
 
 interface NavbarProps {
@@ -27,11 +27,12 @@ export default function Navbar({ user }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { name: "Dashboard", href: "/nasabah/dashboard", icon: Home },
-    { name: "Setor Sampah", href: "/nasabah/setor", icon: PlusCircle },
-    { name: "Tukar Hadiah", href: "/nasabah/tukar", icon: Gift },
-    { name: "Riwayat", href: "/nasabah/riwayat", icon: History },
-  ];
+  { name: "Dashboard", href: "/nasabah/dashboard", icon: Home },
+  { name: "Katalog", href: "/nasabah/katalog", icon: BookOpen },
+  { name: "Setor Sampah", href: "/nasabah/setor", icon: PlusCircle },
+  { name: "Tukar Hadiah", href: "/nasabah/tukar", icon: Gift },
+  { name: "Riwayat", href: "/nasabah/riwayat", icon: History },
+];
 
   const fotoUrl = buildFotoUrl(
     user?.nasabah?.fotoUrl || user?.nasabah?.foto || user?.fotoUrl || user?.foto

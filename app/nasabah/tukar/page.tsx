@@ -16,6 +16,7 @@ import {
   PackageCheck,
   ShoppingBag,
   Sparkles,
+  ImageIcon,
 } from "lucide-react";
 
 export default function NasabahTukarPage() {
@@ -229,70 +230,87 @@ export default function NasabahTukarPage() {
                 const poinNeeded = item.poinDibutuhkan || item.poin || 0;
                 const isOutOfStock = item.stok <= 0;
                 const isPoinEnough = totalPoin >= poinNeeded;
+                const fotoUrl = item.foto || item.gambar || item.imageUrl;
 
                 return (
                   <div
                     key={item.id}
-                    className="bg-white p-6 rounded-3xl border border-[#EAF0EE] flex flex-col justify-between space-y-5 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all group"
+                    className="bg-white rounded-3xl border border-[#EAF0EE] flex flex-col justify-between overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-1 transition-all group"
                   >
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="w-10 h-10 rounded-2xl bg-[#F4F8F7] text-[#0B4F45] flex items-center justify-center border border-[#DCE7E5] group-hover:bg-[#D9F1EF] transition-colors">
-                          <Gift size={20} />
-                        </div>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#6B7C7A] bg-[#F4F8F7] px-2.5 py-1 rounded-full border border-[#DCE7E5]">
+                    <div>
+                      {/* Area Foto Hadiah */}
+                      <div className="relative w-full h-44 bg-[#F4F8F7] flex items-center justify-center overflow-hidden border-b border-[#EAF0EE]">
+                        {fotoUrl ? (
+                          <img
+                            src={fotoUrl}
+                            alt={item.namaHadiah}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-[#B7C2C0] gap-1.5">
+                            <ImageIcon size={32} />
+                            <span className="text-[11px] font-medium">Tidak ada foto</span>
+                          </div>
+                        )}
+
+                        <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[#0B4F45] bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-full border border-[#DCE7E5] shadow-2xs">
                           <PackageCheck size={12} /> Stok: {item.stok}
                         </span>
                       </div>
 
-                      <div>
-                        <h3 className="font-display font-semibold text-[#0B4F45] text-base leading-snug">
-                          {item.namaHadiah}
-                        </h3>
-                        {item.deskripsi && (
-                          <p className="text-xs text-[#6B7C7A] mt-1 line-clamp-2">
-                            {item.deskripsi}
-                          </p>
-                        )}
-                      </div>
+                      {/* Detail Konten */}
+                      <div className="p-5 space-y-3">
+                        <div>
+                          <h3 className="font-display font-semibold text-[#0B4F45] text-base leading-snug">
+                            {item.namaHadiah}
+                          </h3>
+                          {item.deskripsi && (
+                            <p className="text-xs text-[#6B7C7A] mt-1 line-clamp-2">
+                              {item.deskripsi}
+                            </p>
+                          )}
+                        </div>
 
-                      <div className="pt-1">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0B4F45] bg-[#D9F1EF] px-3 py-1.5 rounded-xl border border-[#B7DFDA]">
-                          <Coins size={14} className="text-[#0A7E76]" />
-                          {poinNeeded.toLocaleString("id-ID")} Poin
-                        </span>
+                        <div className="pt-1">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0B4F45] bg-[#D9F1EF] px-3 py-1.5 rounded-xl border border-[#B7DFDA]">
+                            <Coins size={14} className="text-[#0A7E76]" />
+                            {poinNeeded.toLocaleString("id-ID")} Poin
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <button
-                      disabled={
-                        submittingId === item.id ||
-                        isOutOfStock ||
-                        !isPoinEnough
-                      }
-                      onClick={() => handleTukar(item)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                        isOutOfStock
-                          ? "bg-[#EAF0EE] text-[#94A3A1] border border-[#DCE7E5] cursor-not-allowed"
-                          : !isPoinEnough
-                          ? "bg-[#F4F8F7] text-[#6B7C7A] border border-[#DCE7E5] hover:bg-[#EAF0EE]"
-                          : "bg-[#00B8A9] hover:bg-[#00A395] text-white shadow-xs"
-                      }`}
-                    >
-                      {submittingId === item.id ? (
-                        <>
-                          <Loader2 size={14} className="animate-spin" /> Memproses...
-                        </>
-                      ) : isOutOfStock ? (
-                        "Stok Habis"
-                      ) : !isPoinEnough ? (
-                        "Poin Tidak Cukup"
-                      ) : (
-                        <>
-                          <Sparkles size={14} /> Tukar Hadiah
-                        </>
-                      )}
-                    </button>
+                    <div className="p-5 pt-0">
+                      <button
+                        disabled={
+                          submittingId === item.id ||
+                          isOutOfStock ||
+                          !isPoinEnough
+                        }
+                        onClick={() => handleTukar(item)}
+                        className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          isOutOfStock
+                            ? "bg-[#EAF0EE] text-[#94A3A1] border border-[#DCE7E5] cursor-not-allowed"
+                            : !isPoinEnough
+                            ? "bg-[#F4F8F7] text-[#6B7C7A] border border-[#DCE7E5] hover:bg-[#EAF0EE]"
+                            : "bg-[#00B8A9] hover:bg-[#00A395] text-white shadow-xs"
+                        }`}
+                      >
+                        {submittingId === item.id ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" /> Memproses...
+                          </>
+                        ) : isOutOfStock ? (
+                          "Stok Habis"
+                        ) : !isPoinEnough ? (
+                          "Poin Tidak Cukup"
+                        ) : (
+                          <>
+                            <Sparkles size={14} /> Tukar Hadiah
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 );
               })

@@ -51,6 +51,11 @@ export default function Footer() {
                 Riwayat Setor
               </Link>
             </li>
+            <li>
+              <Link href="/nasabah/katalog" className="hover:text-[#00B8A9] transition-colors">
+                Katalog Sampah
+              </Link>
+            </li>
           </ul>
         </div>
 
