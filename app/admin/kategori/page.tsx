@@ -19,6 +19,8 @@ import {
   Layers,
   Coins,
   Tags,
+  Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 
 interface KategoriItem {
@@ -29,6 +31,9 @@ interface KategoriItem {
   poinPerKg?: number;
   harga?: number;
   hargaPerKg?: number;
+  foto?: string;
+  gambarUrl?: string;
+  imageUrl?: string;
 }
 
 const JENIS_OPTIONS = [
@@ -87,6 +92,7 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
 
 export default function AdminKategoriPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [todayLabel, setTodayLabel] = useState<string>("");
   const [listKategori, setListKategori] = useState<KategoriItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +105,10 @@ export default function AdminKategoriPage() {
   const [namaKategori, setNamaKategori] = useState("");
   const [jenisSampah, setJenisSampah] = useState("plastik");
   const [poinPerKg, setPoinPerKg] = useState<string>("");
+  
+  // State untuk unggah foto
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
 
   const extractArray = <T,>(res: unknown): T[] => {
     if (!res || typeof res !== "object") return [];
@@ -170,6 +180,9 @@ export default function AdminKategoriPage() {
     setNamaKategori("");
     setJenisSampah("plastik");
     setPoinPerKg("");
+    setFotoFile(null);
+    setFotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setErrorMsg("");
   };
 
@@ -178,9 +191,19 @@ export default function AdminKategoriPage() {
     setNamaKategori(item.namaKategori || "");
     setJenisSampah((item.jenis || item.jenisSampah || "plastik").toLowerCase());
     setPoinPerKg(String(item.poinPerKg ?? item.harga ?? item.hargaPerKg ?? ""));
+    setFotoFile(null);
+    setFotoPreview(item.foto || item.gambarUrl || item.imageUrl || null);
     setErrorMsg("");
     setSuccessMsg("");
     window.scrollTo({ top: 300, behavior: "smooth" });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFotoFile(file);
+      setFotoPreview(URL.createObjectURL(file));
+    }
   };
 
   const handleDelete = async (id: string, nama: string) => {
@@ -210,12 +233,16 @@ export default function AdminKategoriPage() {
       return;
     }
 
-    const payload = {
-      namaKategori: namaKategori.trim(),
-      hargaPerKg: nilaiAngka,
-      poinPerKg: nilaiAngka,
-      jenis: jenisSampah,
-    };
+    // Gunakan FormData untuk pengiriman payload beserta file foto
+    const formData = new FormData();
+    formData.append("namaKategori", namaKategori.trim());
+    formData.append("hargaPerKg", String(nilaiAngka));
+    formData.append("poinPerKg", String(nilaiAngka));
+    formData.append("jenis", jenisSampah);
+    
+    if (fotoFile) {
+      formData.append("foto", fotoFile); // Sesuaikan key 'foto' sesuai kontrak backend API
+    }
 
     try {
       setSubmitting(true);
@@ -223,10 +250,10 @@ export default function AdminKategoriPage() {
       setSuccessMsg("");
 
       if (editingId) {
-        await kategoriSampahApi.update(editingId, payload);
+        await kategoriSampahApi.update(editingId, formData);
         setSuccessMsg(`Kategori "${namaKategori}" berhasil diperbarui.`);
       } else {
-        await kategoriSampahApi.create(payload);
+        await kategoriSampahApi.create(formData);
         setSuccessMsg(`Kategori "${namaKategori}" berhasil ditambahkan.`);
       }
 
@@ -281,7 +308,7 @@ export default function AdminKategoriPage() {
                 Kelola Kategori Sampah
               </h1>
               <p className="text-xs text-[#6B7C7A] mt-0.5">
-                Atur pengelompokan jenis sampah dan standar konversi poin per kilogram.
+                Atur pengelompokan jenis sampah, foto kategori, dan konversi poin per kilogram.
               </p>
             </div>
           </div>
@@ -375,6 +402,34 @@ export default function AdminKategoriPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Field Foto Kategori */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#0B4F45]">Foto Kategori</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 rounded-xl border border-[#EAF0EE] bg-[#F4F8F7] flex items-center justify-center overflow-hidden shrink-0">
+                      {fotoPreview ? (
+                        <img src={fotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon size={20} className="text-[#6B7C7A]" />
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="foto-kategori-input"
+                    />
+                    <label
+                      htmlFor="foto-kategori-input"
+                      className="px-3 py-2 bg-[#F4F8F7] hover:bg-[#EAF0EE] border border-[#EAF0EE] rounded-xl text-xs font-semibold text-[#0B4F45] cursor-pointer transition-all flex items-center gap-1.5"
+                    >
+                      <Upload size={14} /> Pilih Foto
+                    </label>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#0B4F45]">Nama Kategori</label>
                   <input
@@ -482,6 +537,7 @@ export default function AdminKategoriPage() {
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-[#EAF0EE] text-[#6B7C7A]">
+                        <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Foto</th>
                         <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Nama Kategori</th>
                         <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Jenis</th>
                         <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Poin / Kg</th>
@@ -492,9 +548,19 @@ export default function AdminKategoriPage() {
                       {filteredKategori.map((item) => {
                         const jenisStr = item.jenis || item.jenisSampah || "Lainnya";
                         const poinVal = item.poinPerKg ?? item.harga ?? item.hargaPerKg ?? 0;
+                        const itemFoto = item.foto || item.gambarUrl || item.imageUrl;
 
                         return (
                           <tr key={item.id} className="hover:bg-[#F9FBFB] transition-colors group">
+                            <td className="py-3.5 px-3">
+                              <div className="w-10 h-10 rounded-lg bg-[#F4F8F7] border border-[#EAF0EE] overflow-hidden flex items-center justify-center">
+                                {itemFoto ? (
+                                  <img src={itemFoto} alt={item.namaKategori} className="w-full h-full object-cover" />
+                                ) : (
+                                  <ImageIcon size={16} className="text-[#6B7C7A]" />
+                                )}
+                              </div>
+                            </td>
                             <td className="py-3.5 px-3 font-bold text-[#0B4F45]">
                               {item.namaKategori}
                             </td>

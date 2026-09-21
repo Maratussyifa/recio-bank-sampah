@@ -18,6 +18,10 @@ import {
   ChevronRight,
   X,
   Boxes,
+  Image as ImageIcon,
+  Upload,
+  Link as LinkIcon,
+  Eye,
 } from "lucide-react";
 
 interface HadiahItem {
@@ -27,6 +31,8 @@ interface HadiahItem {
   poin?: number;
   stok?: number;
   stokHadiah?: number;
+  foto?: string;
+  gambar?: string;
 }
 
 function Reveal({
@@ -76,6 +82,8 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
 
 export default function AdminHadiahPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [todayLabel, setTodayLabel] = useState<string>("");
   const [listHadiah, setListHadiah] = useState<HadiahItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +96,10 @@ export default function AdminHadiahPage() {
   const [namaHadiah, setNamaHadiah] = useState("");
   const [poinDibutuhkan, setPoinDibutuhkan] = useState<string>("");
   const [stok, setStok] = useState<string>("");
+  
+  const [uploadMode, setUploadMode] = useState<"file" | "url">("file");
+  const [foto, setFoto] = useState<string>("");
+  const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
 
   const extractArray = <T,>(res: unknown): T[] => {
     if (!res || typeof res !== "object") return [];
@@ -152,7 +164,28 @@ export default function AdminHadiahPage() {
     setNamaHadiah("");
     setPoinDibutuhkan("");
     setStok("");
+    setFoto("");
     setErrorMsg("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setErrorMsg("Ukuran file gambar terlalu besar (Maksimal 2MB).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFoto(reader.result as string);
+      setErrorMsg("");
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleEditInit = (item: HadiahItem) => {
@@ -160,6 +193,7 @@ export default function AdminHadiahPage() {
     setNamaHadiah(item.namaHadiah || "");
     setPoinDibutuhkan(String(item.poinDibutuhkan ?? item.poin ?? ""));
     setStok(String(item.stok ?? item.stokHadiah ?? ""));
+    setFoto(item.foto || item.gambar || "");
     setErrorMsg("");
     setSuccessMsg("");
     window.scrollTo({ top: 300, behavior: "smooth" });
@@ -206,6 +240,7 @@ export default function AdminHadiahPage() {
       namaHadiah: namaHadiah.trim(),
       poinDibutuhkan: nilaiPoin,
       stok: nilaiStok,
+      foto: foto.trim() || undefined,
     };
 
     try {
@@ -272,7 +307,7 @@ export default function AdminHadiahPage() {
                 Kelola Katalog Hadiah
               </h1>
               <p className="text-xs text-[#6B7C7A] mt-0.5">
-                Atur ketersediaan stok hadiah dan standar penukaran poin nasabah.
+                Atur ketersediaan stok hadiah, foto produk, dan standar penukaran poin nasabah.
               </p>
             </div>
           </div>
@@ -414,6 +449,92 @@ export default function AdminHadiahPage() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-[#0B4F45]">Foto Hadiah</label>
+                    <div className="flex items-center gap-1 bg-[#F4F8F7] p-0.5 rounded-lg border border-[#EAF0EE]">
+                      <button
+                        type="button"
+                        onClick={() => setUploadMode("file")}
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors ${
+                          uploadMode === "file"
+                            ? "bg-[#00B8A9] text-white shadow-xs"
+                            : "text-[#6B7C7A] hover:text-[#0B4F45]"
+                        }`}
+                      >
+                        Upload
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUploadMode("url")}
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors ${
+                          uploadMode === "url"
+                            ? "bg-[#00B8A9] text-white shadow-xs"
+                            : "text-[#6B7C7A] hover:text-[#0B4F45]"
+                        }`}
+                      >
+                        URL Link
+                      </button>
+                    </div>
+                  </div>
+
+                  {uploadMode === "file" ? (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        id="foto-upload-input"
+                      />
+                      <label
+                        htmlFor="foto-upload-input"
+                        className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-[#B7DFDA] bg-[#F4F8F7] hover:bg-[#EAF0EE] rounded-2xl cursor-pointer transition-colors text-center group"
+                      >
+                        <Upload size={20} className="text-[#00B8A9] mb-1 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-bold text-[#0B4F45]">Klik untuk Unggah Gambar</span>
+                        <span className="text-[10px] text-[#6B7C7A] mt-0.5">PNG, JPG, JPEG (Maks. 2MB)</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="https://domain.com/gambar.jpg"
+                        value={foto}
+                        onChange={(e) => setFoto(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2.5 bg-[#F4F8F7] border border-[#EAF0EE] rounded-xl text-xs font-medium text-[#1F2D2B] focus:outline-none focus:border-[#00B8A9] focus:bg-white transition-all placeholder:text-[#91A19F]"
+                      />
+                      <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7C7A]" />
+                    </div>
+                  )}
+
+                  {foto && (
+                    <div className="relative mt-2 rounded-xl overflow-hidden border border-[#EAF0EE] bg-[#F4F8F7] group h-36 flex items-center justify-center">
+                      <img
+                        src={foto}
+                        alt="Preview Hadiah"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFoto("");
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-[#B3522F] text-white rounded-lg opacity-90 hover:opacity-100 transition-opacity shadow-sm"
+                        title="Hapus Gambar"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="pt-2">
                   <button
                     type="submit"
@@ -476,6 +597,7 @@ export default function AdminHadiahPage() {
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-[#EAF0EE] text-[#6B7C7A]">
+                        <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Foto</th>
                         <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Nama Hadiah</th>
                         <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Poin Dibutuhkan</th>
                         <th className="py-2.5 px-3 font-semibold uppercase tracking-wider text-[10px]">Stok & Status</th>
@@ -486,9 +608,31 @@ export default function AdminHadiahPage() {
                       {filteredHadiah.map((item) => {
                         const jumlahStok = item.stok ?? item.stokHadiah ?? 0;
                         const poinVal = item.poinDibutuhkan ?? item.poin ?? 0;
+                        const imgUrl = item.foto || item.gambar;
 
                         return (
                           <tr key={item.id} className="hover:bg-[#F9FBFB] transition-colors group">
+                            <td className="py-3.5 px-3">
+                              {imgUrl ? (
+                                <div
+                                  onClick={() => setSelectedImageModal(imgUrl)}
+                                  className="w-10 h-10 rounded-lg overflow-hidden border border-[#EAF0EE] bg-[#F4F8F7] relative cursor-pointer group/img flex items-center justify-center shrink-0"
+                                >
+                                  <img
+                                    src={imgUrl}
+                                    alt={item.namaHadiah}
+                                    className="w-full h-full object-cover group-hover/img:scale-110 transition-transform"
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity">
+                                    <Eye size={12} className="text-white" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-[#F4F8F7] border border-[#EAF0EE] text-[#91A19F] flex items-center justify-center shrink-0">
+                                  <ImageIcon size={18} />
+                                </div>
+                              )}
+                            </td>
                             <td className="py-3.5 px-3 font-bold text-[#0B4F45]">
                               {item.namaHadiah}
                             </td>
@@ -548,6 +692,32 @@ export default function AdminHadiahPage() {
           </div>
         </div>
       </main>
+
+      {selectedImageModal && (
+        <div
+          onClick={() => setSelectedImageModal(null)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-white rounded-3xl p-3 max-w-lg w-full shadow-2xl overflow-hidden"
+          >
+            <button
+              onClick={() => setSelectedImageModal(null)}
+              className="absolute top-5 right-5 p-2 bg-black/50 text-white rounded-full hover:bg-black/80 transition-colors z-10"
+            >
+              <X size={16} />
+            </button>
+            <div className="rounded-2xl overflow-hidden max-h-[70vh] bg-[#F4F8F7]">
+              <img
+                src={selectedImageModal}
+                alt="Preview Detail"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         @keyframes fadeIn {

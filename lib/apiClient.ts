@@ -37,13 +37,6 @@ async function fetcher(endpoint: string, options: RequestInit = {}) {
 
   return data.data || data;
 }
-
-// ================================================================
-// PATCH untuk apiClient.ts — ganti authApi.login & authApi.logout
-// dengan versi ini. Bagian lain file (fetcher, nasabahAdminApi, dst.)
-// TIDAK berubah, cukup replace dua fungsi ini.
-// ================================================================
-
 export const authApi = {
   login: async (credentials: Record<string, any>) => {
     localStorage.removeItem("token");
@@ -63,9 +56,6 @@ export const authApi = {
       localStorage.setItem("user", JSON.stringify(res.user || res));
       document.cookie = `token=${res.token}; path=/; max-age=86400`;
 
-      // WAJIB di-set di sini juga — middleware.ts butuh cookie "role"
-      // untuk lolos proteksi route. Kalau sebelumnya ini di-set manual
-      // di halaman login, sekarang cukup andalkan authApi.login().
       if (role) {
         document.cookie = `role=${role}; path=/; max-age=86400`;
       }
@@ -90,8 +80,6 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    // Cookie "token" DAN "role" dua-duanya harus dihapus —
-    // middleware.ts mengecek keduanya untuk memutuskan redirect.
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     window.location.href = "/login";
