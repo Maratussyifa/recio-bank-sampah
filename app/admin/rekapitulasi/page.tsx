@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { setorSampahApi, penukaranPoinApi } from "@/lib/apiClient";
@@ -18,8 +17,9 @@ import {
   RefreshCw,
   AlertCircle,
   ChevronRight,
-  Coins,
   FileText,
+  CalendarDays,
+  TrendingUp,
 } from "lucide-react";
 
 interface ItemSetor {
@@ -72,6 +72,23 @@ interface PenukaranItem {
   };
 }
 
+const BULAN_OPTIONS = [
+  { value: "01", label: "Januari" },
+  { value: "02", label: "Februari" },
+  { value: "03", label: "Maret" },
+  { value: "04", label: "April" },
+  { value: "05", label: "Mei" },
+  { value: "06", label: "Juni" },
+  { value: "07", label: "Juli" },
+  { value: "08", label: "Agustus" },
+  { value: "09", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+];
+
+const BULAN_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+
 const getJumlahPenukaran = (item: PenukaranItem): number => {
   const raw = item as unknown as Record<string, unknown>;
   return (
@@ -110,12 +127,28 @@ const getNasabahNama = (item: unknown): string => {
   );
 };
 
+const matchBulanTahun = (
+  dateStr: string | undefined,
+  bulanFilter: string,
+  tahunFilter: string
+): boolean => {
+  if (bulanFilter === "SEMUA") return true;
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return false;
+  const bulan = String(d.getMonth() + 1).padStart(2, "0");
+  const tahun = String(d.getFullYear());
+  return bulan === bulanFilter && tahun === tahunFilter;
+};
+
 export default function AdminRekapitulasiPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"setor" | "penukaran">("setor");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("semua");
+  const [bulanFilter, setBulanFilter] = useState<string>("SEMUA");
+  const [tahunFilter, setTahunFilter] = useState<string>(String(new Date().getFullYear()));
 
   const [listSetor, setListSetor] = useState<SetorItem[]>([]);
   const [listPenukaran, setListPenukaran] = useState<PenukaranItem[]>([]);
@@ -179,11 +212,95 @@ export default function AdminRekapitulasiPage() {
     loadData();
   }, []);
 
+  const tahunOptions = useMemo(() => {
+    const years = new Set<number>();
+    years.add(new Date().getFullYear());
+    [...listSetor, ...listPenukaran].forEach((item) => {
+      const d = new Date(item.tanggal || item.createdAt || "");
+      if (!isNaN(d.getTime())) years.add(d.getFullYear());
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [listSetor, listPenukaran]);
+
+  const filteredSetor = useMemo(() => {
+    return listSetor.filter((item) => {
+      const nama = getNasabahNama(item).toLowerCase();
+      const matchSearch =
+        nama.includes(searchQuery.toLowerCase()) ||
+        (item.catatan || "").toLowerCase().includes(searchQuery.toLowerCase());
+      const matchStatus =
+        statusFilter === "semua" ||
+        item.status?.toLowerCase() === statusFilter.toLowerCase();
+      const matchBulan = matchBulanTahun(item.tanggal || item.createdAt, bulanFilter, tahunFilter);
+      return matchSearch && matchStatus && matchBulan;
+    });
+  }, [listSetor, searchQuery, statusFilter, bulanFilter, tahunFilter]);
+
+  const filteredPenukaran = useMemo(() => {
+    return listPenukaran.filter((item) => {
+      const nama = getNasabahNama(item).toLowerCase();
+      const hadiah = (
+        item.hadiah?.namaHadiah ||
+        item.hadiah?.nama ||
+        ""
+      ).toLowerCase();
+      const matchSearch =
+        nama.includes(searchQuery.toLowerCase()) ||
+        hadiah.includes(searchQuery.toLowerCase());
+      const matchStatus =
+        statusFilter === "semua" ||
+        item.status?.toLowerCase() === statusFilter.toLowerCase();
+      const matchBulan = matchBulanTahun(item.createdAt || item.tanggal, bulanFilter, tahunFilter);
+      return matchSearch && matchStatus && matchBulan;
+    });
+  }, [listPenukaran, searchQuery, statusFilter, bulanFilter, tahunFilter]);
+
+  // Data Pertumbuhan Bulanan untuk Grafik
+  const monthlyData = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, i) => ({
+      bulanIndex: i,
+      label: BULAN_SHORT[i],
+      valSetorKg: 0,
+      valPenukaranQty: 0,
+      countSetor: 0,
+      countPenukaran: 0,
+    }));
+
+    listSetor.forEach((item) => {
+      if (item.status?.toLowerCase() !== "selesai") return;
+      const d = new Date(item.tanggal || item.createdAt || "");
+      if (isNaN(d.getTime())) return;
+      if (String(d.getFullYear()) === tahunFilter) {
+        const m = d.getMonth();
+        const items = getSetorItems(item);
+        const berat = items.reduce((a, b) => a + (b.beratRealKg ?? b.beratKg ?? 0), 0);
+        months[m].valSetorKg += berat;
+        months[m].countSetor += 1;
+      }
+    });
+
+    listPenukaran.forEach((item) => {
+      if (item.status?.toLowerCase() !== "selesai") return;
+      const d = new Date(item.tanggal || item.createdAt || "");
+      if (isNaN(d.getTime())) return;
+      if (String(d.getFullYear()) === tahunFilter) {
+        const m = d.getMonth();
+        months[m].valPenukaranQty += getJumlahPenukaran(item);
+        months[m].countPenukaran += 1;
+      }
+    });
+
+    const maxKg = Math.max(...months.map((m) => m.valSetorKg), 1);
+    const maxQty = Math.max(...months.map((m) => m.valPenukaranQty), 1);
+
+    return { months, maxKg, maxQty };
+  }, [listSetor, listPenukaran, tahunFilter]);
+
   const stats = useMemo(() => {
-    const setorSelesai = listSetor.filter(
+    const setorSelesai = filteredSetor.filter(
       (s) => s.status?.toLowerCase() === "selesai"
     );
-    const penukaranSelesai = listPenukaran.filter(
+    const penukaranSelesai = filteredPenukaran.filter(
       (p) => p.status?.toLowerCase() === "selesai"
     );
 
@@ -202,49 +319,23 @@ export default function AdminRekapitulasiPage() {
     );
 
     return {
-      totalTransaksiSetor: listSetor.length,
+      totalTransaksiSetor: filteredSetor.length,
       setorSelesaiCount: setorSelesai.length,
       totalBeratKg,
-      totalTransaksiPenukaran: listPenukaran.length,
+      totalTransaksiPenukaran: filteredPenukaran.length,
       penukaranSelesaiCount: penukaranSelesai.length,
       totalPenukaranItem,
     };
-  }, [listSetor, listPenukaran]);
-
-  const filteredSetor = useMemo(() => {
-    return listSetor.filter((item) => {
-      const nama = getNasabahNama(item).toLowerCase();
-      const matchSearch =
-        nama.includes(searchQuery.toLowerCase()) ||
-        (item.catatan || "").toLowerCase().includes(searchQuery.toLowerCase());
-      const matchStatus =
-        statusFilter === "semua" ||
-        item.status?.toLowerCase() === statusFilter.toLowerCase();
-      return matchSearch && matchStatus;
-    });
-  }, [listSetor, searchQuery, statusFilter]);
-
-  const filteredPenukaran = useMemo(() => {
-    return listPenukaran.filter((item) => {
-      const nama = getNasabahNama(item).toLowerCase();
-      const hadiah = (
-        item.hadiah?.namaHadiah ||
-        item.hadiah?.nama ||
-        ""
-      ).toLowerCase();
-      const matchSearch =
-        nama.includes(searchQuery.toLowerCase()) ||
-        hadiah.includes(searchQuery.toLowerCase());
-      const matchStatus =
-        statusFilter === "semua" ||
-        item.status?.toLowerCase() === statusFilter.toLowerCase();
-      return matchSearch && matchStatus;
-    });
-  }, [listPenukaran, searchQuery, statusFilter]);
+  }, [filteredSetor, filteredPenukaran]);
 
   const handlePrint = () => {
     window.print();
   };
+
+  const labelBulanTerpilih =
+    bulanFilter === "SEMUA"
+      ? `Semua Bulan (${tahunFilter})`
+      : `${BULAN_OPTIONS.find((b) => b.value === bulanFilter)?.label} ${tahunFilter}`;
 
   if (loading) {
     return (
@@ -312,6 +403,7 @@ export default function AdminRekapitulasiPage() {
         }
       `}</style>
 
+      {/* Header Breadcrumb */}
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-1.5 text-xs font-medium text-[#6B7C7A]">
           <Link
@@ -343,6 +435,7 @@ export default function AdminRekapitulasiPage() {
         </div>
       )}
 
+      {/* Action Banner */}
       <div className="bg-white rounded-2xl p-6 border border-[#EAF0EE] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-[#E6F7F5] text-[#065F56] rounded-xl flex items-center justify-center shrink-0">
@@ -375,6 +468,55 @@ export default function AdminRekapitulasiPage() {
         </div>
       </div>
 
+      {/* Filter Control */}
+      <div className="bg-white rounded-2xl p-4 border border-[#EAF0EE] shadow-xs flex flex-col sm:flex-row sm:items-center gap-3 print:hidden">
+        <div className="flex items-center gap-2 text-xs font-bold text-[#065F56] shrink-0">
+          <CalendarDays size={16} />
+          Filter Periode
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <select
+            value={bulanFilter}
+            onChange={(e) => setBulanFilter(e.target.value)}
+            className="px-3.5 py-2 bg-[#F4F8F7] border border-[#DCE7E5] rounded-xl text-xs font-semibold text-[#1F2D2B] focus:outline-none focus:ring-2 focus:ring-[#00BBA7]/30 transition-all cursor-pointer"
+          >
+            <option value="SEMUA">Semua Bulan</option>
+            {BULAN_OPTIONS.map((b) => (
+              <option key={b.value} value={b.value}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={tahunFilter}
+            onChange={(e) => setTahunFilter(e.target.value)}
+            className="px-3.5 py-2 bg-[#F4F8F7] border border-[#DCE7E5] rounded-xl text-xs font-semibold text-[#1F2D2B] focus:outline-none focus:ring-2 focus:ring-[#00BBA7]/30 transition-all cursor-pointer"
+          >
+            {tahunOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+
+          {bulanFilter !== "SEMUA" && (
+            <button
+              onClick={() => setBulanFilter("SEMUA")}
+              className="text-[11px] font-semibold text-[#B3522F] hover:underline cursor-pointer"
+            >
+              Reset Filter
+            </button>
+          )}
+        </div>
+
+        <span className="text-[11px] font-semibold text-[#065F56] bg-[#E6F7F5] px-3 py-1.5 rounded-lg border border-[#B7DFDA] whitespace-nowrap">
+          Menampilkan: {labelBulanTerpilih}
+        </span>
+      </div>
+
+      {/* Header Nota Saat Dicetak */}
       <div className="hidden print:block mb-3 print-area">
         <div className="flex items-end justify-between border-b-[3px] border-[#0B4F45] pb-2.5">
           <div className="flex items-center gap-3">
@@ -390,6 +532,7 @@ export default function AdminRekapitulasiPage() {
                 <span className="font-bold uppercase">
                   {activeTab === "setor" ? "Setor Sampah Nasabah" : "Penukaran Hadiah"}
                 </span>
+                {" "}&middot; Periode: <span className="font-bold uppercase">{labelBulanTerpilih}</span>
               </p>
             </div>
           </div>
@@ -407,6 +550,7 @@ export default function AdminRekapitulasiPage() {
         </div>
       </div>
 
+      {/* Widget KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 print:hidden">
         <div className="bg-white p-5 rounded-2xl border border-[#EAF0EE] shadow-xs flex items-center justify-between">
           <div>
@@ -479,6 +623,7 @@ export default function AdminRekapitulasiPage() {
         </div>
       </div>
 
+      {/* Summary Box pada Nota Cetak */}
       <div className="hidden print:grid grid-cols-4 gap-3 mb-3 py-2.5 px-3 bg-[#F4F8F7] border border-[#0B4F45]/25 rounded no-print-break">
         <div>
           <span className="text-gray-600 block text-[9px] uppercase tracking-wide">Total Transaksi Setor</span>
@@ -498,6 +643,55 @@ export default function AdminRekapitulasiPage() {
         </div>
       </div>
 
+      {/* BAGIAN GRAFIK PERTUMBUHAN PER BULAN (Tampil di Layar & Nota Cetak) */}
+      <div className="bg-white rounded-2xl p-5 border border-[#EAF0EE] shadow-xs print:border print:border-black print:p-3 print:my-3 no-print-break">
+        <div className="flex items-center justify-between mb-3 border-b border-[#F0F5F4] print:border-black pb-2">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={18} className="text-[#065F56] print:text-black" />
+            <h2 className="text-sm font-bold text-[#065F56] print:text-black uppercase tracking-wider">
+              Grafik Pertumbuhan Perbulan Tahun {tahunFilter}
+            </h2>
+          </div>
+          <span className="text-[10px] font-semibold text-[#6B7C7A] print:text-black">
+            Metrik: {activeTab === "setor" ? "Berat Sampah (Kg)" : "Jumlah Hadiah (Pcs)"}
+          </span>
+        </div>
+
+        {/* Visualisasi Bar Chart SVG */}
+        <div className="w-full h-32 pt-4 pb-1">
+          <div className="h-full flex items-end justify-between gap-1 sm:gap-2">
+            {monthlyData.months.map((m) => {
+              const val = activeTab === "setor" ? m.valSetorKg : m.valPenukaranQty;
+              const maxVal = activeTab === "setor" ? monthlyData.maxKg : monthlyData.maxQty;
+              const heightPercent = Math.max((val / maxVal) * 100, 4); // Minimal 4% agar bar tetap terlihat sedikit meski 0
+
+              return (
+                <div key={m.bulanIndex} className="flex-1 flex flex-col items-center h-full justify-end group">
+                  {/* Tooltip Nilai/Label Atas */}
+                  <span className="text-[9px] font-bold text-[#065F56] print:text-black mb-1 opacity-80 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    {val > 0 ? (activeTab === "setor" ? `${val.toFixed(0)}k` : val) : "-"}
+                  </span>
+
+                  {/* Batang Grafik */}
+                  <div className="w-full max-w-[28px] bg-[#E6F7F5] print:bg-slate-200 rounded-t-md relative flex items-end overflow-hidden h-full">
+                    <div
+                      style={{ height: `${heightPercent}%` }}
+                      className="w-full bg-[#00BBA7] print:bg-black rounded-t-md transition-all duration-300"
+                    />
+                  </div>
+
+                  {/* Label Bulan */}
+                  <span className="text-[9px] font-bold text-[#6B7C7A] print:text-black mt-1.5 uppercase">
+                    {m.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabel Data Rekapitulasi */}
       <div className="bg-white rounded-2xl border border-[#EAF0EE] shadow-xs overflow-hidden print:border-none print:shadow-none print:rounded-none">
         <div className="p-5 border-b border-[#F0F5F4] space-y-4 print:hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -660,8 +854,8 @@ export default function AdminRekapitulasiPage() {
                       <th className="py-2.5 px-4 whitespace-nowrap">Tanggal</th>
                       <th className="py-2.5 px-4">Nasabah</th>
                       <th className="py-2.5 px-4">Hadiah Dikeluarkan</th>
-                      <th className="py-2.5 px-4">Jumlah</th>
-                      <th className="py-2.5 px-4">Poin Digunakan</th>
+                      <th className="py-2.5 px-4 text-center">Jumlah</th>
+                      <th className="py-2.5 px-4 text-right">Poin Digunakan</th>
                       <th className="py-2.5 px-4 text-center">Status</th>
                     </tr>
                   </thead>
@@ -670,31 +864,26 @@ export default function AdminRekapitulasiPage() {
                       const statusLower = item.status?.toLowerCase() || "";
                       const isSelesai = statusLower === "selesai";
                       const isDitolak = statusLower === "ditolak";
-
                       const totalPoin = getTotalPoinPenukaran(item);
+                      const jumlah = getJumlahPenukaran(item);
 
                       return (
                         <tr key={item.id} className="hover:bg-[#F9FBFB] transition-colors print:hover:bg-transparent">
                           <td className="py-2.5 px-4 text-[#9AAEAB] font-medium text-center print:text-black">{idx + 1}</td>
                           <td className="py-2.5 px-4 text-[#6B7C7A] font-medium whitespace-nowrap print:text-black">
-                            {formatDate(item.createdAt || item.tanggal)}
+                            {formatDate(item.tanggal || item.createdAt)}
                           </td>
                           <td className="py-2.5 px-4 text-[#1F2D2B] font-bold print:text-black">
                             {getNasabahNama(item)}
                           </td>
-                          <td className="py-2.5 px-4 text-slate-800 font-medium print:text-black">
-                            {item.hadiah?.namaHadiah || item.hadiah?.nama || "-"}
+                          <td className="py-2.5 px-4 text-[#3E5250] font-semibold print:text-black">
+                            {item.hadiah?.namaHadiah || item.hadiah?.nama || "Hadiah"}
                           </td>
-                          <td className="py-2.5 px-4">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F4F8F7] text-[#3E5250] font-bold rounded-lg text-xs border border-[#EAF0EE] print:bg-transparent print:border-none print:p-0 print:text-black">
-                              {getJumlahPenukaran(item)} Pcs
-                            </span>
+                          <td className="py-2.5 px-4 text-center font-bold text-[#065F56] print:text-black">
+                            {jumlah} Pcs
                           </td>
-                          <td className="py-2.5 px-4">
-                            <span className="inline-flex items-center gap-1 text-amber-700 font-bold text-xs bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/60 print:bg-transparent print:border-none print:p-0 print:text-black">
-                              <Coins size={13} className="text-amber-500 print:hidden" />
-                              {totalPoin.toLocaleString("id-ID")} Poin
-                            </span>
+                          <td className="py-2.5 px-4 text-right font-bold text-[#065F56] print:text-black">
+                            {totalPoin.toLocaleString("id-ID")} Poin
                           </td>
                           <td className="py-2.5 px-4 text-center">
                             <span
@@ -725,22 +914,6 @@ export default function AdminRekapitulasiPage() {
             )}
           </>
         )}
-      </div>
-
-      <div className="hidden print:flex justify-between items-end mt-10 pt-3 text-[10px] text-black no-print-break print-area">
-        <div className="text-center w-44">
-          <p className="font-normal">Mengetahui,</p>
-          <p className="font-bold mb-10">Pengurus Bank Sampah</p>
-          <div className="border-b border-black w-full mx-auto"></div>
-        </div>
-        <div className="text-[9px] text-gray-500 self-end pb-1">
-          Dicetak otomatis oleh sistem Recio
-        </div>
-        <div className="text-center w-44">
-          <p className="font-normal">Dicetak Oleh,</p>
-          <p className="font-bold mb-10">Petugas / Admin</p>
-          <div className="border-b border-black w-full mx-auto"></div>
-        </div>
       </div>
     </div>
   );

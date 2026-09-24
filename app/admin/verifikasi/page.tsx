@@ -767,10 +767,71 @@ export default function AdminVerifikasiPage() {
                   })
                 )}
               </div>
+
+              <div className="p-4 bg-[#D9F1EF]/50 rounded-2xl border border-[#B7DFDA]/60 text-xs space-y-1.5 text-[#0B4F45]">
+                <div className="flex justify-between">
+                  <span>Total Estimasi:</span>
+                  <span className="font-bold">{totalEstimasiKg.toFixed(2)} Kg</span>
+                </div>
+                <div className="flex justify-between font-extrabold text-sm pt-1 border-t border-[#B7DFDA]">
+                  <span>Total Berat Riil:</span>
+                  <span>{totalRealKg.toFixed(2)} Kg</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={verifying || fetchingDetail}
+                  onClick={() => setSelectedSetor(null)}
+                  className="px-4 py-2 text-xs font-semibold text-[#6B7C7A] bg-[#F4F8F7] hover:bg-[#EAF0EE] rounded-xl transition-all cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={verifying || fetchingDetail}
+                  onClick={() => handleProcessSetor("ditolak")}
+                  className="px-4 py-2 text-xs font-semibold text-[#B3522F] bg-[#FBEAE5] hover:bg-[#F0CFC5] rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  Tolak
+                </button>
+                <button
+                  type="button"
+                  disabled={verifying || fetchingDetail}
+                  onClick={() => handleProcessSetor("selesai")}
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#00B8A9] hover:bg-[#00A395] rounded-xl transition-all disabled:opacity-50 shadow-xs flex items-center gap-2 cursor-pointer"
+                >
+                  {verifying ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Memproses...</span>
+                    </>
+                  ) : (
+                    <span>Setujui & Simpan</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
       </main>
+
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }
